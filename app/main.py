@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.config import settings
+from app.api.v1.router import api_v1_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -8,11 +9,4 @@ app = FastAPI(
 )
 
 
-@app.get("/api/health", tags=["Health"])
-async def health_check():
-    """Healthcheck."""
-    return {
-        "status": "ok",
-        "app_name": settings.APP_NAME,
-        "environment": settings.APP_ENV
-    }
+app.include_router(api_v1_router, prefix="/api/v1")
