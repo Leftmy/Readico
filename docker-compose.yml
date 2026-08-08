@@ -1,49 +1,24 @@
-version: '3.8'
+version: "3.8"
 
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: readico_db
-    environment:
-      POSTGRES_USER: ${DB_USER:-readico_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-readico_password}
-      POSTGRES_DB: ${DB_NAME:-readico_db}
-    ports:
-      - "${DB_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-readico_user} -d ${DB_NAME:-readico_db}"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
-
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: readico_app
+    build: .
     ports:
-      - "${APP_PORT:-8000}:${APP_PORT:-8000}"
+      - "${APP_PORT:-8000}:8000"
+    volumes:
+      - .:/app
     env_file:
       - .env
-    environment:
-      - DB_HOST=${DB_HOST:-db}
-      - DB_PORT=${DB_PORT:-5432}
-      - APP_PORT=${APP_PORT:-8000}
-    volumes:
-      - ${STORAGE_LOCATION:-./data/uploads}:/app/data/uploads
-      - ${VECTOR_DB_STORAGE_DIR:-./data/faiss_index}:/app/data/faiss_index
     depends_on:
-      db:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://127.0.0.1:$${APP_PORT:-8000}/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
+      - qdrant
+
+  qdrant:
+    image: qdrant/qdrant:v1.9.2
+    ports:
+      - "${QDRANT_PORT:-6333}:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
 
 volumes:
-  postgres_data:
+  qdrant_storage:
