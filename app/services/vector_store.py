@@ -14,16 +14,23 @@ class QdrantVectorStore:
         host: Optional[str] = None,
         port: Optional[int] = None,
         location: Optional[str] = None,
+        api_key: Optional[str] = None,
         collection_name: str = "documents",
         vector_size: int = 384,
     ):
         self.collection_name = collection_name
         self.vector_size = vector_size
 
-        if location:
-            self.client = QdrantClient(location=location)
+        if location == ":memory:" or host == ":memory:":
+            self.client = QdrantClient(location=":memory:")
+        elif location:
+            self.client = QdrantClient(url=location, api_key=api_key)
         else:
-            self.client = QdrantClient(host=host or "localhost", port=port or 6333)
+            self.client = QdrantClient(
+                host=host or "qdrant",
+                port=port or 6333,
+                api_key=api_key,
+            )
 
         self._ensure_collection()
 

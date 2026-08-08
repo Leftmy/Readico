@@ -1,5 +1,5 @@
 from typing import List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class QueryRequest(BaseModel):
@@ -20,6 +20,13 @@ class QueryRequest(BaseModel):
         le=20, 
         description="Number of relevant document chunks to retrieve"
     )
+    @field_validator("query")
+    @classmethod
+    def validate_not_whitespace(cls, value: str) -> str:
+        """Ensure prompt is not empty or consisting only of whitespace."""
+        if not value.strip():
+            raise ValueError("Query cannot be empty or consist only of whitespace.")
+        return value
 
 
 class Citation(BaseModel):
