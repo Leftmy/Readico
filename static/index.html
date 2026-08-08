@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Readico RAG Assistant</title>
+    <link rel="stylesheet" href="/static/styles.css">
+    <!-- Marked.js library for Markdown rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script type="module" src="/static/main.js" defer></script>
+</head>
+<body>
+
+<div class="app-layout">
+    <!-- Sidebar: Documents Management -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h2>Documents</h2>
+            <button id="uploadBtn" class="btn-secondary">+ Upload</button>
+            <input type="file" id="fileInput" accept=".pdf,.txt,.md" hidden multiple />
+        </div>
+
+        <!-- Drag and drop zone -->
+        <div class="drop-zone" id="dropZone">
+            Drag & drop files here or click Upload
+        </div>
+
+        <div class="documents-list" id="documentsList">
+            <!-- Items generated dynamically -->
+        </div>
+    </aside>
+
+    <!-- Main Chat Container -->
+    <main class="chat-container">
+        <header>
+            <h1>Readico RAG Assistant</h1>
+        </header>
+
+        <div class="messages-area" id="messagesArea">
+            <div class="message bot">
+                Welcome! Ask a question about your uploaded documents.
+            </div>
+        </div>
+
+        <div class="input-area">
+            <form class="input-form" id="queryForm">
+                <input 
+                    type="text" 
+                    id="queryInput" 
+                    placeholder="Type your question..." 
+                    autocomplete="off" 
+                    required 
+                />
+                <button type="submit" id="sendBtn">Send</button>
+            </form>
+        </div>
+    </main>
+</div>
+
+</body>
+</html>

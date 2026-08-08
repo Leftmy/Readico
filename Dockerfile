@@ -16,7 +16,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY ./app ./app
 COPY ./static ./static
-COPY ./data ./data
 
 EXPOSE ${APP_PORT:-8000}
 
