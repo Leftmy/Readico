@@ -10,13 +10,12 @@ from app.services.vector_store import QdrantVectorStore
 @lru_cache()
 def get_vector_store() -> QdrantVectorStore:
     """
-    Dependency provider for VectorStore client instance (e.g., Qdrant).
-    Cached using lru_cache to reuse the connection pool across requests.
+    Dependency provider for QdrantVectorStore client instance.
     """
     return QdrantVectorStore(
         host=settings.QDRANT_HOST,
         port=settings.QDRANT_PORT,
-        api_key=settings.QDRANT_API_KEY,
+        api_key=getattr(settings, "QDRANT_API_KEY", None),
         collection_name=settings.QDRANT_COLLECTION_NAME,
     )
 
@@ -24,7 +23,7 @@ def get_vector_store() -> QdrantVectorStore:
 @lru_cache()
 def get_document_parser() -> DocumentParser:
     """
-    Dependency provider for DocumentParser instance used for PDF/text parsing and chunking.
+    Dependency provider for DocumentParser.
     """
     return DocumentParser(
         chunk_size=settings.CHUNK_SIZE,
@@ -34,8 +33,7 @@ def get_document_parser() -> DocumentParser:
 
 def get_rag_service() -> RAGService:
     """
-    Dependency provider for RAGService handling search and document indexing.
-    Injects the vector store connection.
+    Dependency provider for RAGService.
     """
     vector_store = get_vector_store()
     return RAGService(vector_store=vector_store)
@@ -43,10 +41,10 @@ def get_rag_service() -> RAGService:
 
 def get_llm_service() -> LLMService:
     """
-    Dependency provider for LLMService managing OpenAI API generation calls.
+    Dependency provider for LLMService.
     """
     return LLMService(
         api_key=settings.OPENAI_API_KEY,
-        model_name=settings.LLM_MODEL_NAME,
-        temperature=settings.LLM_TEMPERATURE,
+        model_name=getattr(settings, "LLM_MODEL_NAME", settings.OPENAI_MODEL),
+        temperature=getattr(settings, "LLM_TEMPERATURE", 0.7),
     )
