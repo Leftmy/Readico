@@ -31,6 +31,7 @@ class Settings(BaseSettings):
     QDRANT_HOST: str = "qdrant"
     QDRANT_PORT: int = 6333
     QDRANT_COLLECTION_NAME: str = "documents"
+    QDRANT_API_KEY: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env",

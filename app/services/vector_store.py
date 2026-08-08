@@ -24,14 +24,20 @@ class QdrantVectorStore:
         if location == ":memory:" or host == ":memory:":
             self.client = QdrantClient(location=":memory:")
         elif location:
-            self.client = QdrantClient(url=location, api_key=api_key)
+            url = location if location.startswith(("http://", "https://")) else f"http://{location}"
+            self.client = QdrantClient(
+                url=url,
+                api_key=api_key,
+                check_compatibility=False,
+            )
         else:
             self.client = QdrantClient(
-                host=host or "qdrant",
+                host=host or "localhost",
                 port=port or 6333,
+                https=False,
+                check_compatibility=False,
                 api_key=api_key,
             )
-
         self._ensure_collection()
 
     def _ensure_collection(self) -> None:

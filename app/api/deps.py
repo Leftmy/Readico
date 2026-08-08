@@ -1,7 +1,9 @@
 from functools import lru_cache
+from fastapi import Depends
 
 from app.config import settings
 from app.services.document_parser import DocumentParser
+from app.services.embedding_service import EmbeddingService
 from app.services.llm_service import LLMService
 from app.services.rag_service import RAGService
 from app.services.vector_store import QdrantVectorStore
@@ -9,14 +11,20 @@ from app.services.vector_store import QdrantVectorStore
 
 @lru_cache()
 def get_vector_store() -> QdrantVectorStore:
-    """
-    Dependency provider for QdrantVectorStore client instance.
-    """
     return QdrantVectorStore(
         host=settings.QDRANT_HOST,
         port=settings.QDRANT_PORT,
         api_key=getattr(settings, "QDRANT_API_KEY", None),
         collection_name=settings.QDRANT_COLLECTION_NAME,
+        vector_size=384,
+    )
+
+
+@lru_cache()
+def get_embedding_service() -> EmbeddingService:
+    return EmbeddingService(
+        model_name="BAAI/bge-small-en-v1.5",
+        dimension=384,
     )
 
 
@@ -31,12 +39,17 @@ def get_document_parser() -> DocumentParser:
     )
 
 
-def get_rag_service() -> RAGService:
+def get_rag_service(
+    vector_store: QdrantVectorStore = Depends(get_vector_store),
+    embedding_service: EmbeddingService = Depends(get_embedding_service),
+) -> RAGService:
     """
     Dependency provider for RAGService.
     """
-    vector_store = get_vector_store()
-    return RAGService(vector_store=vector_store)
+    return RAGService(
+        vector_store=vector_store,
+        embedding_service=embedding_service,
+    )
 
 
 def get_llm_service() -> LLMService:

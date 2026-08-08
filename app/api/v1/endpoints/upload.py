@@ -70,7 +70,7 @@ async def upload_document(
     # 2. Parse file content into chunks
     try:
         content = await file.read()
-        chunks = parser.parse(content=content, filename=file.filename)
+        chunks = parser.parse(doc_id=document_id, file_bytes=content, filename=file.filename)
         logger.info("Successfully parsed file '%s' into %d chunks.", file.filename, len(chunks))
     except ValueError as exc:
         logger.warning("Parsing failed for file '%s': %s", file.filename, exc)
@@ -87,7 +87,7 @@ async def upload_document(
 
     # 3. Index chunks into vector store
     try:
-        indexed_count = rag_service.index_chunks(document_id=document_id, chunks=chunks)
+        indexed_count = rag_service.index_chunks(chunks=chunks)
         logger.info("Successfully indexed %d chunks for document_id '%s'.", indexed_count, document_id)
     except Exception as exc:
         logger.error("Failed to index chunks for document_id '%s': %s", document_id, exc, exc_info=True)
