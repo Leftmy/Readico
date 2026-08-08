@@ -7,7 +7,7 @@ class EmbeddingService:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,  
+        api_key: Optional[str] = None,
         model_name: str = "BAAI/bge-small-en-v1.5",
         dimension: int = 384,
         batch_size: int = 256,
@@ -33,7 +33,9 @@ class EmbeddingService:
                 raise ValueError("Text for embedding cannot be empty")
 
         try:
-            embeddings_generator = self.model.embed(texts, batch_size=self.batch_size)
-            return [emb.tolist() for emb in embeddings_generator]
+            embeddings_generator = self.model.embed(
+                texts, batch_size=self.batch_size
+            )
+            return [list(emb) for emb in embeddings_generator]
         except Exception as e:
             raise RuntimeError(f"Failed to generate embeddings: {e}") from e

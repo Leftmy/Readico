@@ -1,74 +1,61 @@
 from unittest.mock import MagicMock, patch
 import pytest
+import numpy as np
 
 from app.services.embedding_service import EmbeddingService
 
 
 @pytest.fixture
-def mock_openai_client():
-    """Fixture mocking the OpenAI client embeddings response."""
-    with patch("app.services.embedding_service.OpenAI") as mock_client_cls:
-        mock_client = MagicMock()
-        mock_client_cls.return_value = mock_client
+def mock_fastembed():
+    """Mock FastEmbed TextEmbedding initialization and embed method."""
+    with patch("app.services.embedding_service.TextEmbedding") as mock_class:
+        mock_instance = MagicMock()
+        mock_class.return_value = mock_instance
 
-        mock_response = MagicMock()
-        mock_item_1 = MagicMock()
-        mock_item_1.embedding = [0.1] * 1536
-        mock_item_2 = MagicMock()
-        mock_item_2.embedding = [0.2] * 1536
-
-        mock_response.data = [mock_item_1, mock_item_2]
-        mock_client.embeddings.create.return_value = mock_response
-
-        yield mock_client
+        mock_instance.embed.side_effect = lambda texts, batch_size=256: iter(
+            [np.array([0.1] * 384) for _ in texts]
+        )
+        yield mock_class, mock_instance
 
 
 @pytest.fixture
-def embedding_service(mock_openai_client) -> EmbeddingService:
-    """Fixture initializing EmbeddingService with mocked client."""
-    return EmbeddingService(
-        api_key="test-key",
-        model_name="text-embedding-3-small",
-        dimension=1536
-    )
+def embedding_service(mock_fastembed) -> EmbeddingService:
+    """Fixture initializing EmbeddingService with mocked FastEmbed."""
+    return EmbeddingService(model_name="BAAI/bge-small-en-v1.5")
 
 
 # Happy Path Tests
 
-def test_embed_single_text(embedding_service: EmbeddingService, mock_openai_client):
-    """Verify embedding a single text string returns a float list of correct dimension."""
-    text = "FastAPI with Qdrant vector store."
-    vector = embedding_service.embed_text(text)
-
+def test_embed_single_text(embedding_service: EmbeddingService):
+    """Verify single text embedding generation."""
+    vector = embedding_service.embed_text("FastAPI guide")
     assert isinstance(vector, list)
-    assert len(vector) == 1536
-    assert all(isinstance(x, float) for x in vector)
-    mock_openai_client.embeddings.create.assert_called_once()
+    assert len(vector) == 384
+    assert vector[0] == 0.1
 
 
-def test_embed_batch_texts(embedding_service: EmbeddingService, mock_openai_client):
-    """Verify batch processing converts list of strings into list of vectors."""
-    texts = ["Document chunk 1", "Document chunk 2"]
+def test_embed_batch_texts(embedding_service: EmbeddingService):
+    """Verify batch text embedding generation."""
+    texts = ["FastAPI guide", "Qdrant vector database"]
     vectors = embedding_service.embed_batch(texts)
-
     assert isinstance(vectors, list)
     assert len(vectors) == 2
-    assert len(vectors[0]) == 1536
-    assert len(vectors[1]) == 1536
+    assert len(vectors[0]) == 384
+    assert len(vectors[1]) == 384
 
 
-def test_embed_empty_batch(embedding_service: EmbeddingService, mock_openai_client):
-    """Verify passing an empty list returns empty list without making API calls."""
+def test_embed_empty_batch(embedding_service: EmbeddingService, mock_fastembed):
+    """Verify empty batch returns empty list without calling model."""
+    _, mock_instance = mock_fastembed
     vectors = embedding_service.embed_batch([])
-
     assert vectors == []
-    mock_openai_client.embeddings.create.assert_not_called()
+    mock_instance.embed.assert_not_called()
 
 
-# Fail & Edge Case Tests
+# Validation Tests
 
 def test_embed_empty_text_validation(embedding_service: EmbeddingService):
-    """Verify ValueError is raised when trying to embed empty or whitespace-only text."""
+    """Verify ValueError is raised for empty or whitespace string."""
     with pytest.raises(ValueError, match="Text for embedding cannot be empty"):
         embedding_service.embed_text("")
 
@@ -77,60 +64,31 @@ def test_embed_empty_text_validation(embedding_service: EmbeddingService):
 
 
 def test_batch_contains_empty_string(embedding_service: EmbeddingService):
-    """Verify ValueError is raised if any element in a batch is empty or whitespace."""
-    invalid_batch = ["Valid text chunk", "", "Another valid chunk"]
-
+    """Verify ValueError is raised if any string in batch is empty."""
     with pytest.raises(ValueError, match="Text for embedding cannot be empty"):
-        embedding_service.embed_batch(invalid_batch)
+        embedding_service.embed_batch(["Valid text", ""])
 
 
-def test_missing_api_key():
-    """Verify ValueError is raised if EmbeddingService is initialized without API key."""
-    with pytest.raises(ValueError, match="API key for OpenAI is required"):
-        EmbeddingService(api_key=None, model_name="text-embedding-3-small")
+# Exception Handling Tests
+
+def test_fastembed_exception(embedding_service: EmbeddingService, mock_fastembed):
+    """Verify RuntimeError is raised when FastEmbed raises an exception."""
+    _, mock_instance = mock_fastembed
+    mock_instance.embed.side_effect = Exception("ONNX Runtime Error")
+
+    with pytest.raises(
+        RuntimeError, match="Failed to generate embeddings: ONNX Runtime Error"
+    ):
+        embedding_service.embed_batch(["Test query"])
 
 
-def test_openai_api_exception(embedding_service: EmbeddingService, mock_openai_client):
-    """Verify RuntimeError is raised when OpenAI API call fails (network/auth/rate limit)."""
-    mock_openai_client.embeddings.create.side_effect = Exception("OpenAI API Connection Timeout")
-
-    with pytest.raises(RuntimeError, match="Failed to generate embeddings: OpenAI API Connection Timeout"):
-        embedding_service.embed_text("Test query")
-
-
-def test_dimension_mismatch(embedding_service: EmbeddingService, mock_openai_client):
-    """Verify ValueError is raised if OpenAI API returns an embedding with unexpected dimension."""
-    mock_response = MagicMock()
-    mock_item = MagicMock()
-    mock_item.embedding = [0.1] * 512
-    mock_response.data = [mock_item]
-    mock_openai_client.embeddings.create.return_value = mock_response
-
-    with pytest.raises(ValueError, match="Returned embedding dimension mismatch"):
-        embedding_service.embed_text("Test query")
-
-def test_embed_large_batch_splits_requests(mock_openai_client):
-    """Verify that a large list of texts is split into sub-batches based on batch_size."""
-    service = EmbeddingService(
-        api_key="test-key",
-        model_name="text-embedding-3-small",
-        dimension=1536,
-        batch_size=2
+def test_embed_large_batch_splits_requests(embedding_service: EmbeddingService, mock_fastembed):
+    """Verify batch_size parameter is correctly passed to FastEmbed model."""
+    _, mock_instance = mock_fastembed
+    texts = [f"Document {i}" for i in range(10)]
+    
+    embedding_service.embed_batch(texts)
+    
+    mock_instance.embed.assert_called_once_with(
+        texts, batch_size=embedding_service.batch_size
     )
-
-    def create_batch_response(model, input):
-        """Dynamic mock response matching the size of input chunk."""
-        mock_response = MagicMock()
-        mock_response.data = [
-            MagicMock(embedding=[0.1] * 1536) for _ in range(len(input))
-        ]
-        return mock_response
-
-    mock_openai_client.embeddings.create.side_effect = create_batch_response
-
-    texts = [f"Chunk {i}" for i in range(5)]
-    vectors = service.embed_batch(texts)
-
-    # For 5 elements with batch_size=2, there should be 3 API calls (2 + 2 + 1)
-    assert mock_openai_client.embeddings.create.call_count == 3
-    assert len(vectors) == 5

@@ -27,8 +27,8 @@ class Settings(BaseSettings):
     LLM_BASE_URL: Optional[str] = (
         "https://generativelanguage.googleapis.com/v1beta/openai/"
     )
-    EMBEDDING_MODEL: str = "text-embedding-3-small"
-    EMBEDDING_DIMENSION: int = 1536
+    EMBEDDING_MODEL: str
+    EMBEDDING_DIMENSION: int 
 
     # Vector DB
     VECTOR_DB_TYPE: str = "qdrant"
