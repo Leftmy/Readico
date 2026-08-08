@@ -3,6 +3,12 @@ from typing import Optional
 from pydantic import BaseModel, Field, ConfigDict
 
 
+class DocumentInfo(BaseModel):
+    id: str
+    filename: str
+    status: str = "Indexed"
+    chunks_count: Optional[int] = None
+
 class DocumentBase(BaseModel):
     """Base schema containing essential document metadata."""
     filename: str = Field(..., description="Original name of the uploaded file")

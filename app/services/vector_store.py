@@ -4,7 +4,7 @@ from qdrant_client import QdrantClient
 from qdrant_client import models
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
-from app.schemas.document import DocumentChunk
+from app.schemas.document import DocumentChunk, DocumentInfo
 
 
 class QdrantVectorStore:
@@ -80,6 +80,36 @@ class QdrantVectorStore:
             score = 0.0
 
         return payload, score
+
+    def get_all_documents(self) -> List[DocumentInfo]:
+        """Retrieve unique indexed documents from Qdrant collection."""
+        try:
+            records, _ = self.client.scroll(
+                collection_name=self.collection_name,
+                limit=10000,
+                with_payload=True,
+                with_vectors=False,
+            )
+
+            unique_docs = {}
+            for record in records:
+                payload = record.payload or {}
+                filename = payload.get("source_filename", "Unknown")
+                doc_id = str(payload.get("document_id", filename))
+
+                if doc_id not in unique_docs:
+                    unique_docs[doc_id] = {
+                        "id": doc_id,
+                        "filename": filename,
+                        "status": "Indexed",
+                        "chunks_count": 1,
+                    }
+                else:
+                    unique_docs[doc_id]["chunks_count"] += 1
+
+            return [DocumentInfo(**doc) for doc in unique_docs.values()]
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch documents from vector store: {e}") from e
 
     def upsert_chunks(self, chunks: List[DocumentChunk], embeddings: List[List[float]]) -> None:
         """Store document chunks along with their embeddings and metadata in Qdrant."""
