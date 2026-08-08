@@ -2,67 +2,64 @@ from typing import Any, Dict, List, Optional
 from openai import OpenAI
 from app.prompts import DEFAULT_RAG_SYSTEM_PROMPT
 
+
 class LLMService:
-    """Service for generating RAG answers using OpenAI Chat Completion API."""
+    """Universal LLM Service for any OpenAI-compatible Chat Completion API."""
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
-        model_name: str = "gpt-4o-mini",
+        api_key: str,
+        model_name: str,
+        base_url: Optional[str] = None,
     ):
         if not api_key:
-            raise ValueError("API key for OpenAI is required")
+            raise ValueError("LLM API key is required")
 
         self.model_name = model_name
-        self.client = OpenAI(api_key=api_key)
+
+        # If base_url is provided (and it's not empty), use it,
+        # otherwise the SDK defaults to the OpenAI API.
+        client_kwargs: Dict[str, Any] = {"api_key": api_key}
+        if base_url and base_url.strip():
+            client_kwargs["base_url"] = base_url.strip()
+
+        self.client = OpenAI(**client_kwargs)
 
     def generate_answer(
         self,
         query: str,
-        context_chunks: List[Dict[str, Any]],
+        context_chunks: Optional[List[Dict[str, Any]]] = None,
+        contexts: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
-        """Generate an answer grounded in the provided context chunks.
+        chunks = context_chunks if context_chunks is not None else (contexts or [])
 
-        Args:
-            query (str): User question.
-            context_chunks (List[Dict[str, Any]]): Retrieved document chunks with metadata.
-
-        Returns:
-            Dict[str, Any]: Containing 'answer' text and 'sources' list.
-        """
         if not query or not query.strip():
             raise ValueError("Query cannot be empty")
 
-        if not context_chunks:
+        if not chunks:
             return {
                 "answer": "Unfortunately the information was not found in the according document.",
                 "sources": [],
             }
 
-        # 1. Format context chunks into a single string with citations
         formatted_context_blocks = []
-        for idx, chunk in enumerate(context_chunks, start=1):
+        for idx, chunk in enumerate(chunks, start=1):
             content = chunk.get("content", "")
-            metadata = chunk.get("metadata", {})
-            filename = metadata.get("source_filename", "Unknown")
-            page = metadata.get("page_number")
+            metadata = chunk.get("metadata", chunk)
+            filename = metadata.get("source_filename") or chunk.get(
+                "source_filename", "Unknown"
+            )
+            page = metadata.get("page_number") or chunk.get("page_number")
+
             page_str = f" (Page {page})" if page else ""
             formatted_context_blocks.append(
                 f"[{idx}] Source: {filename}{page_str}\n{content}"
             )
 
         context_str = "\n\n".join(formatted_context_blocks)
-
-        # 2. System and user prompts
         system_prompt = DEFAULT_RAG_SYSTEM_PROMPT
+        user_prompt = f"Context:\n{context_str}\n\nQuestion: {query}\n\nAnswer:"
 
-        user_prompt = (
-            f"Context:\n{context_str}\n\n"
-            f"Question: {query}\n\n"
-            "Answer:"
-        )
-
-        # 3. Call OpenAI Chat Completion API
         try:
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -76,24 +73,27 @@ class LLMService:
             raise RuntimeError(f"Failed to generate answer from LLM: {e}") from e
 
         answer_text = response.choices[0].message.content
-
-        # 4. Extracting unique sources
-        sources = self._extract_unique_sources(context_chunks)
+        sources = self._extract_unique_sources(chunks)
 
         return {
             "answer": answer_text,
             "sources": sources,
         }
 
-    def _extract_unique_sources(self, context_chunks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        """Extract unique sources with metadata from context chunks."""
+    def _extract_unique_sources(
+        self, context_chunks: List[Dict[str, Any]]
+    ) -> List[Dict[str, Any]]:
         seen = set()
         unique_sources = []
 
         for chunk in context_chunks:
-            metadata = chunk.get("metadata", {})
-            filename = metadata.get("source_filename")
-            page_number = metadata.get("page_number")
+            metadata = chunk.get("metadata", chunk)
+            filename = metadata.get("source_filename") or chunk.get(
+                "source_filename"
+            )
+            page_number = metadata.get("page_number") or chunk.get(
+                "page_number"
+            )
 
             source_key = (filename, page_number)
             if source_key not in seen:

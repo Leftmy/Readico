@@ -20,9 +20,13 @@ class Settings(BaseSettings):
     CHUNK_OVERLAP: int = 150
     BATCH_SIZE: int = 200
 
-    # OpenAI API
-    OPENAI_API_KEY: Optional[str] = None
-    OPENAI_MODEL: str = "gpt-4o-mini"
+    # LLM API
+    LLM_API_KEY: str
+    LLM_MODEL_NAME: str = "gemini-1.5-flash"
+    # If None or empty string — default endpoint OpenAI is used (api.openai.com)
+    LLM_BASE_URL: Optional[str] = (
+        "https://generativelanguage.googleapis.com/v1beta/openai/"
+    )
     EMBEDDING_MODEL: str = "text-embedding-3-small"
     EMBEDDING_DIMENSION: int = 1536
 

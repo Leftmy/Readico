@@ -1,6 +1,7 @@
 import uuid
 from typing import Any, Dict, List, Optional, Tuple
 from qdrant_client import QdrantClient
+from qdrant_client import models
 from qdrant_client.models import Distance, PointStruct, VectorParams
 
 from app.schemas.document import DocumentChunk
@@ -115,12 +116,30 @@ class QdrantVectorStore:
                 points=points
             )
 
-    def search(self, query_vector: List[float], limit: int = 5) -> List[Dict[str, Any]]:
-        """Search top-k most similar vector chunks using query_points API."""
+    def search(
+    self,
+    query_vector: List[float],
+    limit: int = 5,
+    document_ids: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+        """Search top-k most similar vector chunks using query_points API with optional document filtering."""
+        query_filter = None
+
+        if document_ids:
+            query_filter = models.Filter(
+                must=[
+                    models.FieldCondition(
+                        key="document_id",
+                        match=models.MatchAny(any=document_ids),
+                    )
+                ]
+            )
+
         response = self.client.query_points(
             collection_name=self.collection_name,
             query=query_vector,
-            limit=limit
+            query_filter=query_filter,
+            limit=limit,
         )
 
         results = []

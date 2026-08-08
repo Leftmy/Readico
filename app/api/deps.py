@@ -53,11 +53,8 @@ def get_rag_service(
 
 
 def get_llm_service() -> LLMService:
-    """
-    Dependency provider for LLMService.
-    """
     return LLMService(
-        api_key=settings.OPENAI_API_KEY,
-        model_name=getattr(settings, "LLM_MODEL_NAME", settings.OPENAI_MODEL),
-        temperature=getattr(settings, "LLM_TEMPERATURE", 0.7),
+        api_key=settings.LLM_API_KEY,
+        model_name=settings.LLM_MODEL_NAME,
+        base_url=settings.LLM_BASE_URL,
     )

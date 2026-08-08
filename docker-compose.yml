@@ -15,7 +15,7 @@ services:
       - qdrant
 
   qdrant:
-    image: qdrant/qdrant:v1.9.2
+    image: qdrant/qdrant:v1.10.0
     ports:
       - "${QDRANT_PORT:-6333}:6333"
       - "6334:6334"

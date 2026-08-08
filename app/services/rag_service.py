@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 from app.schemas.document import DocumentChunk
 from app.services.embedding_service import EmbeddingService
 from app.services.vector_store import QdrantVectorStore
@@ -32,16 +32,13 @@ class RAGService:
 
         return len(chunks)
 
-    def search(self, query: str, top_k: int = 5) -> List[Dict[str, Any]]:
-        """Search top-k most relevant document chunks for a text query.
-        
-        Args:
-            query (str): The search text query.
-            top_k (int): Number of top results to retrieve.
-            
-        Returns:
-            List[Dict[str, Any]]: List of matching chunk dictionaries with similarity scores.
-        """
+    def search(
+        self,
+        query: str,
+        top_k: int = 4,
+        document_ids: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Search top-k most relevant document chunks for a text query."""
         if not query or not query.strip():
             raise ValueError("Search query cannot be empty")
 
@@ -50,6 +47,10 @@ class RAGService:
 
         query_vector = self.embedding_service.embed_text(query)
 
-        results = self.vector_store.search(query_vector=query_vector, limit=top_k)
+        results = self.vector_store.search(
+            query_vector=query_vector,
+            limit=top_k,
+            document_ids=document_ids,
+        )
 
         return results
