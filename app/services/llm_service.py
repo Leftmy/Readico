@@ -1,6 +1,6 @@
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
-from app.core.prompts import DEFAULT_RAG_SYSTEM_PROMPT
+from app.prompts import DEFAULT_RAG_SYSTEM_PROMPT
 
 class LLMService:
     """Service for generating RAG answers using OpenAI Chat Completion API."""
@@ -39,7 +39,7 @@ class LLMService:
                 "sources": [],
             }
 
-        # 1. Формуємо контекст для промпту
+        # 1. Format context chunks into a single string with citations
         formatted_context_blocks = []
         for idx, chunk in enumerate(context_chunks, start=1):
             content = chunk.get("content", "")
