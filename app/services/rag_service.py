@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 from app.schemas.document import DocumentChunk
 from app.services.embedding_service import EmbeddingService
 from app.services.vector_store import QdrantVectorStore
+from app.services.reranker_service import RerankerService
 
 
 class RAGService:
@@ -11,9 +12,11 @@ class RAGService:
         self,
         embedding_service: EmbeddingService,
         vector_store: QdrantVectorStore,
+        reranker_service: RerankerService
     ):
         self.embedding_service = embedding_service
         self.vector_store = vector_store
+        self.reranker_service = reranker_service
 
     def index_chunks(self, chunks: List[DocumentChunk]) -> int:
         """Embed content of DocumentChunk items and store them in the vector database.
@@ -33,24 +36,28 @@ class RAGService:
         return len(chunks)
 
     def search(
-        self,
-        query: str,
-        top_k: int = 4,
-        document_ids: Optional[List[str]] = None,
-    ) -> List[Dict[str, Any]]:
-        """Search top-k most relevant document chunks for a text query."""
-        if not query or not query.strip():
-            raise ValueError("Search query cannot be empty")
-
-        if top_k <= 0:
-            raise ValueError("top_k must be a positive integer")
-
+    self,
+    query: str,
+    top_k: int = 4,
+    document_ids: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+        """Search vector store and apply reranking to return relevant chunks."""
         query_vector = self.embedding_service.embed_text(query)
 
-        results = self.vector_store.search(
+        # Fetch a larger candidate pool from Vector DB (e.g., 15 items)
+        candidate_limit = max(top_k * 3, 15)
+        raw_results = self.vector_store.search(
             query_vector=query_vector,
-            limit=top_k,
+            limit=candidate_limit,
             document_ids=document_ids,
         )
 
-        return results
+        # Pass candidates through Reranker to filter out irrelevant files (e.g., score < 0.35) and return top-k results
+        reranked_results = self.reranker_service.rerank(
+            query=query,
+            results=raw_results,
+            top_n=top_k,
+            score_threshold=0.35,
+        )
+
+        return reranked_results

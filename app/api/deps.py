@@ -1,4 +1,5 @@
 from functools import lru_cache
+from app.services.reranker_service import RerankerService
 from fastapi import Depends
 
 from app.config import settings
@@ -27,6 +28,11 @@ def get_embedding_service() -> EmbeddingService:
         dimension=384,
     )
 
+@lru_cache()
+def get_reranker_service() -> RerankerService:
+    return RerankerService(
+        model_name=settings.RERANKER_MODEL_NAME,
+    )
 
 @lru_cache()
 def get_document_parser() -> DocumentParser:
@@ -42,6 +48,7 @@ def get_document_parser() -> DocumentParser:
 def get_rag_service(
     vector_store: QdrantVectorStore = Depends(get_vector_store),
     embedding_service: EmbeddingService = Depends(get_embedding_service),
+    reranker_service: RerankerService = Depends(get_reranker_service),
 ) -> RAGService:
     """
     Dependency provider for RAGService.
@@ -49,6 +56,7 @@ def get_rag_service(
     return RAGService(
         vector_store=vector_store,
         embedding_service=embedding_service,
+        reranker_service=reranker_service
     )
 
 

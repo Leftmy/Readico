@@ -68,15 +68,22 @@ async def chat_query(
         ) from exc
 
     # 3. Construct citations list from search results
+    MIN_RELEVANCE_SCORE = 0.50 
+
+    filtered_results = [
+        item for item in search_results 
+        if item.get("score") is not None and item.get("score") >= MIN_RELEVANCE_SCORE
+    ]
+
     citations = [
         Citation(
-            document_id=item.get("metadata", {}).get("document_id", "doc_unknown"),
-            filename=item.get("metadata", {}).get("source_filename", "unknown"),
-            page_number=item.get("metadata", {}).get("page_number"),
+            document_id=item.get("document_id") or "doc_unknown",
+            filename=item.get("source_filename") or item.get("filename") or "unknown",
+            page_number=item.get("page_number"),
             snippet=item.get("content", ""),
             relevance_score=item.get("score"),
         )
-        for item in search_results
+        for item in filtered_results
     ]
 
     return QueryResponse(

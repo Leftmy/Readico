@@ -19,6 +19,7 @@ class Settings(BaseSettings):
     CHUNK_SIZE: int = 800
     CHUNK_OVERLAP: int = 150
     BATCH_SIZE: int = 200
+    RERANKER_MODEL_NAME: str = "ms-marco-TinyBERT-L-2-v2"
 
     # LLM API
     LLM_API_KEY: str

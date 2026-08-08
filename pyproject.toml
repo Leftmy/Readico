@@ -22,7 +22,7 @@ dependencies = [
     "qdrant-client>=0.1.0",
     "openai>=2.53.0",
     "slowapi>=0.1.10",
-    
+    "flashrank>=0.2.10",
     "fastembed>=0.3.0",
 ]
 
