@@ -59,6 +59,24 @@ def sample_context_chunks():
     ]
 
 
+@pytest.fixture
+def botanical_context_chunks():
+    """Thematically matching chunks that do not contain the specific answer."""
+    return [
+        {
+            "chunk_id": "botanical_1",
+            "content": "Ботанічний сад засновано у 1980 році. На території ростуть кедри, дуби та сосни у секції Б.",
+            "score": 0.78,
+            "metadata": {
+                "document_id": "botanical_doc",
+                "source_filename": "botanical_garden_guide.pdf",
+                "page_number": 1,
+                "chunk_index": 0
+            }
+        }
+    ]
+
+
 # Happy Path Tests
 
 def test_generate_answer_success(
@@ -92,8 +110,54 @@ def test_generate_answer_empty_context(llm_service: LLMService, mock_openai_clie
 
     assert "answer" in result
     assert result["sources"] == []
-    assert "Unfortunately the information was not found in the according document" in result["answer"]
+    assert "information was not found" in result["answer"]
     mock_openai_client.chat.completions.create.assert_not_called()
+
+
+# Thematic Overlap & Grounding Edge Case Tests
+
+def test_generate_answer_thematic_match_without_factual_answer(
+    llm_service: LLMService,
+    mock_openai_client,
+    botanical_context_chunks
+):
+    """
+    Verify LLM correctly handles cases where chunks match the domain/theme,
+    but lack specific instructions requested by user.
+    """
+    mock_response = MagicMock()
+    mock_choice = MagicMock()
+    mock_choice.message.content = "У наданій документації немає інформації про алгоритм розміщення насіння кедрів."
+    mock_response.choices = [mock_choice]
+    mock_openai_client.chat.completions.create.return_value = mock_response
+
+    result = llm_service.generate_answer(
+        query="Як розмістити насіння кедрів для найкращого росту?",
+        context_chunks=botanical_context_chunks
+    )
+
+    assert result["answer"] == "У наданій документації немає інформації про алгоритм розміщення насіння кедрів."
+    assert len(result["sources"]) == 1
+    assert result["sources"][0]["source_filename"] == "botanical_garden_guide.pdf"
+
+
+def test_generate_answer_passes_strict_system_prompt(
+    llm_service: LLMService,
+    mock_openai_client,
+    sample_context_chunks
+):
+    """Verify that system prompt passed to OpenAI enforces strict grounding and rules."""
+    llm_service.generate_answer(
+        query="What is FastAPI?",
+        context_chunks=sample_context_chunks
+    )
+
+    call_args = mock_openai_client.chat.completions.create.call_args
+    messages = call_args.kwargs["messages"]
+    system_message = messages[0]["content"]
+
+    assert "STRICT GROUNDING" in system_message or "ONLY the facts" in system_message
+    assert "THEMATIC VS FACTUAL MATCH" in system_message or "does not contain enough information" in system_message
 
 
 # Fail & Edge Case Tests
