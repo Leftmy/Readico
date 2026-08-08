@@ -27,13 +27,13 @@ def mock_dependencies():
     mock_rag_service.index_chunks.return_value = 2
     mock_rag_service.search.return_value = [
         {
+            "chunk_id": "doc_123_chunk_0",
             "content": "FastAPI enables high performance API endpoints.",
             "score": 0.92,
-            "metadata": {
-                "document_id": "doc_123",
-                "source_filename": "fastapi_doc.pdf",
-                "page_number": 2,
-            },
+            "document_id": "doc_123",
+            "source_filename": "fastapi_doc.pdf",
+            "filename": "fastapi_doc.pdf",
+            "page_number": 2,
         }
     ]
 

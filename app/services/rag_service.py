@@ -42,6 +42,13 @@ class RAGService:
     document_ids: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
         """Search vector store and apply reranking to return relevant chunks."""
+
+        if not query or not query.strip():
+            raise ValueError("Search query cannot be empty")
+
+        if top_k <= 0:
+            raise ValueError("top_k must be a positive integer")
+
         query_vector = self.embedding_service.embed_text(query)
 
         # Fetch a larger candidate pool from Vector DB (e.g., 15 items)
